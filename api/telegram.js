@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // Handle Preflight OPTIONS request correctly
+  // Handle CORS Preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -13,21 +13,19 @@ export default async function handler(req, res) {
 
   const { action, details } = req.body;
 
-  // Read credentials from Environment Variables
-  const token = process.env.BOT_TOKEN; 
+  // Read from Environment Variables
+  const token = process.env.BOT_TOKEN;
   const chatId = process.env.CHAT_ID;
 
-  console.log("Env Token exists:", !!token);
-  console.log("Env ChatId exists:", !!chatId);
-  console.log("Payload:", { action, details });
+  // DEBUG: Log what we received vs what we have
+  console.log("Incoming Payload:", { action, details });
+  console.log("Env Token:", token ? "SET" : "MISSING");
+  console.log("Env ChatId:", chatId ? "SET" : "MISSING");
 
   if (!token || !chatId) {
     return res.status(500).json({ 
-      error: 'Missing Credentials', 
-      debug: { 
-        envToken: process.env.BOT_TOKEN ? "SET" : "MISSING", 
-        envChatId: process.env.CHAT_ID ? "SET" : "MISSING"
-      } 
+      error: 'Missing Environment Variables',
+      debug: { hasToken: !!token, hasChatId: !!chatId }
     });
   }
 
@@ -46,11 +44,10 @@ export default async function handler(req, res) {
       })
     });
 
-    // FIX: Check if response is OK before parsing JSON
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("Telegram API Error Response:", errorBody);
-      throw new Error(`Telegram API Error: ${response.status} ${errorBody}`);
+      const errorText = await response.text();
+      console.error("Telegram API Error:", errorText);
+      throw new Error(`Telegram Error: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
@@ -58,7 +55,6 @@ export default async function handler(req, res) {
     if (data.ok) {
       return res.status(200).json({ success: true });
     } else {
-      console.error("Telegram API reported failure:", data);
       return res.status(500).json({ error: 'Telegram API Failure', details: data });
     }
   } catch (error) {
