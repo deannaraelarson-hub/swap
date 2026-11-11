@@ -1,10 +1,10 @@
 export default async function handler(req, res) {
-  // Handle Preflight OPTIONS request
+  // 1. Handle Preflight OPTIONS request correctly
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    return res.status(200).json({});
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(204).end(); // CRITICAL: Use 204 No Content, NOT JSON
   }
 
   if (req.method !== 'POST') {
@@ -13,13 +13,14 @@ export default async function handler(req, res) {
 
   const { action, details } = req.body;
 
-  // Read credentials from Environment Variables
-  const token = process.env.BOT_TOKEN || ""; 
-  const chatId = process.env.CHAT_ID || "";
+  // 2. Read credentials from Environment Variables (Vercel handles this securely)
+  const token = process.env.BOT_TOKEN; 
+  const chatId = process.env.CHAT_ID;
 
-  // Debugging: Log what we received
-  console.log("Received Payload:", { action, details });
-  console.log("Env Config:", { hasToken: !!token, hasChatId: !!chatId });
+  // Debugging: Log to Vercel Logs to confirm env vars are read
+  console.log("Env Token exists:", !!token);
+  console.log("Env ChatId exists:", !!chatId);
+  console.log("Payload:", { action, details });
 
   if (!token || !chatId) {
     return res.status(500).json({ 
@@ -49,14 +50,11 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (data.ok) {
-      res.setHeader('Access-Control-Allow-Origin', '*');
       return res.status(200).json({ success: true });
     } else {
-      res.setHeader('Access-Control-Allow-Origin', '*');
       return res.status(500).json({ error: 'Telegram API Error', details: data });
     }
   } catch (error) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
     return res.status(500).json({ error: 'Network Error', details: error.message });
   }
 }
