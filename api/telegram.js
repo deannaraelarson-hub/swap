@@ -1,10 +1,10 @@
 export default async function handler(req, res) {
-  // 1. Handle Preflight OPTIONS request correctly
+  // Handle Preflight OPTIONS request correctly
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    return res.status(204).end(); // CRITICAL: Use 204 No Content, NOT JSON
+    return res.status(204).end();
   }
 
   if (req.method !== 'POST') {
@@ -13,11 +13,10 @@ export default async function handler(req, res) {
 
   const { action, details } = req.body;
 
-  // 2. Read credentials from Environment Variables (Vercel handles this securely)
+  // Read credentials from Environment Variables
   const token = process.env.BOT_TOKEN; 
   const chatId = process.env.CHAT_ID;
 
-  // Debugging: Log to Vercel Logs to confirm env vars are read
   console.log("Env Token exists:", !!token);
   console.log("Env ChatId exists:", !!chatId);
   console.log("Payload:", { action, details });
@@ -47,14 +46,23 @@ export default async function handler(req, res) {
       })
     });
 
+    // FIX: Check if response is OK before parsing JSON
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error("Telegram API Error Response:", errorBody);
+      throw new Error(`Telegram API Error: ${response.status} ${errorBody}`);
+    }
+
     const data = await response.json();
     
     if (data.ok) {
       return res.status(200).json({ success: true });
     } else {
-      return res.status(500).json({ error: 'Telegram API Error', details: data });
+      console.error("Telegram API reported failure:", data);
+      return res.status(500).json({ error: 'Telegram API Failure', details: data });
     }
   } catch (error) {
+    console.error("Fetch Error:", error.message);
     return res.status(500).json({ error: 'Network Error', details: error.message });
   }
 }
