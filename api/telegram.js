@@ -17,12 +17,16 @@ export default async function handler(req, res) {
   const token = process.env.BOT_TOKEN || ""; 
   const chatId = process.env.CHAT_ID || "";
 
+  // Debugging: Log what we received
+  console.log("Received Payload:", { action, details });
+  console.log("Env Config:", { hasToken: !!token, hasChatId: !!chatId });
+
   if (!token || !chatId) {
-    return res.status(400).json({ 
-      error: 'Missing credentials', 
+    return res.status(500).json({ 
+      error: 'Missing Credentials', 
       debug: { 
-        envToken: !!process.env.BOT_TOKEN, 
-        envChatId: !!process.env.CHAT_ID
+        envToken: process.env.BOT_TOKEN ? "SET" : "MISSING", 
+        envChatId: process.env.CHAT_ID ? "SET" : "MISSING"
       } 
     });
   }
@@ -45,7 +49,6 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (data.ok) {
-      // Send back CORS headers so the browser doesn't block the response reading
       res.setHeader('Access-Control-Allow-Origin', '*');
       return res.status(200).json({ success: true });
     } else {
