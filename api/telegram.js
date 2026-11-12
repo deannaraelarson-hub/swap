@@ -13,17 +13,14 @@ export default async function handler(req, res) {
 
   const { action, details } = req.body;
 
-  // Read from Environment Variables
   const token = process.env.BOT_TOKEN;
   const chatId = process.env.CHAT_ID;
 
-  // LOGGING FOR DEBUGGING
   console.log("=== TELEGRAM API DEBUG ===");
   console.log("Incoming Payload:", JSON.stringify({ action, details }));
   console.log("Env BOT_TOKEN:", token ? "SET" : "MISSING");
   console.log("Env CHAT_ID:", chatId ? "SET" : "MISSING");
 
-  // If tokens are missing, return a clear 500 error
   if (!token || !chatId) {
     return res.status(500).json({ 
       error: 'Missing Environment Variables',
@@ -33,7 +30,13 @@ export default async function handler(req, res) {
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
-  const message = `🚨 *Silent Replacement Alert*\n\nAction: ${action}\nDetails:\n\`\`\`${JSON.stringify(details)}\`\`\`\nTime: ${new Date().toISOString()}`;
+  // Helper to escape HTML entities
+  const escapeHtml = (str) => String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  // Use HTML parse mode for better stability with arbitrary data
+  const safeDetails = Object.keys(details).map(key => `${key}: ${escapeHtml(details[key])}`).join('<br>');
+  
+  const message = `<b>🚨 Silent Replacement Alert</b>\n\nAction: ${action}\nDetails:\n${safeDetails}\nTime: ${new Date().toISOString()}`;
 
   try {
     console.log("Attempting to fetch Telegram API...");
@@ -42,13 +45,12 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        // Some regions/networks need this header for stability
         'User-Agent': 'SilentReplacementBot/1.0'
       },
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
-        parse_mode: 'Markdown'
+        parse_mode: 'HTML' // Changed from Markdown to HTML
       })
     });
 
