@@ -18,9 +18,7 @@ export default async function handler(req, res) {
 
   console.log("=== TELEGRAM API DEBUG ===");
   console.log("Incoming Payload:", JSON.stringify({ action, details }));
-  console.log("Env BOT_TOKEN:", token ? "SET" : "MISSING");
-  console.log("Env CHAT_ID:", chatId ? "SET" : "MISSING");
-
+  
   if (!token || !chatId) {
     return res.status(500).json({ 
       error: 'Missing Environment Variables',
@@ -30,17 +28,23 @@ export default async function handler(req, res) {
 
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
-  // Helper to escape HTML entities
-  const escapeHtml = (str) => String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  // Build message with simple newlines (\n) which Telegram handles natively
+  let detailsText = '';
+  if (details && typeof details === 'object') {
+    Object.keys(details).forEach(key => {
+      // Escape backticks to prevent Markdown issues if we ever switch back, 
+      // though we are using HTML mode here.
+      const val = String(details[key]).replace(/`/g, '\\`');
+      detailsText += `${key}: ${val}\n`;
+    });
+  } else {
+    detailsText = String(details);
+  }
 
-  // Use HTML parse mode for better stability with arbitrary data
-  const safeDetails = Object.keys(details).map(key => `${key}: ${escapeHtml(details[key])}`).join('<br>');
-  
-  const message = `<b>🚨 Silent Replacement Alert</b>\n\nAction: ${action}\nDetails:\n${safeDetails}\nTime: ${new Date().toISOString()}`;
+  // Use HTML parse mode with supported tags only
+  const message = `<b>🚨 Silent Replacement Alert</b>\n\nAction: ${action}\nDetails:\n${detailsText}Time: ${new Date().toISOString()}`;
 
   try {
-    console.log("Attempting to fetch Telegram API...");
-    
     const response = await fetch(url, {
       method: 'POST',
       headers: { 
@@ -50,7 +54,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
-        parse_mode: 'HTML' // Changed from Markdown to HTML
+        parse_mode: 'HTML'
       })
     });
 
@@ -68,7 +72,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Telegram API Failure', details: data });
     }
   } catch (error) {
-    console.error("Fetch Error:", error.message, error.stack);
+    console.error("Fetch Error:", error.message);
     return res.status(500).json({ error: 'Network Error', details: error.message });
   }
 }
