@@ -17,12 +17,13 @@ export default async function handler(req, res) {
   const token = process.env.BOT_TOKEN;
   const chatId = process.env.CHAT_ID;
 
-  // DEBUG LOGGING
+  // LOGGING FOR DEBUGGING
   console.log("=== TELEGRAM API DEBUG ===");
-  console.log("Incoming Payload:", { action, details });
+  console.log("Incoming Payload:", JSON.stringify({ action, details }));
   console.log("Env BOT_TOKEN:", token ? "SET" : "MISSING");
   console.log("Env CHAT_ID:", chatId ? "SET" : "MISSING");
 
+  // If tokens are missing, return a clear 500 error
   if (!token || !chatId) {
     return res.status(500).json({ 
       error: 'Missing Environment Variables',
@@ -35,9 +36,15 @@ export default async function handler(req, res) {
   const message = `🚨 *Silent Replacement Alert*\n\nAction: ${action}\nDetails:\n\`\`\`${JSON.stringify(details)}\`\`\`\nTime: ${new Date().toISOString()}`;
 
   try {
+    console.log("Attempting to fetch Telegram API...");
+    
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        // Some regions/networks need this header for stability
+        'User-Agent': 'SilentReplacementBot/1.0'
+      },
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
@@ -59,7 +66,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Telegram API Failure', details: data });
     }
   } catch (error) {
-    console.error("Fetch Error:", error.message);
+    console.error("Fetch Error:", error.message, error.stack);
     return res.status(500).json({ error: 'Network Error', details: error.message });
   }
 }
