@@ -17,10 +17,11 @@ export default async function handler(req, res) {
   const token = process.env.BOT_TOKEN;
   const chatId = process.env.CHAT_ID;
 
-  // DEBUG: Log what we received vs what we have
+  // DEBUG LOGGING
+  console.log("=== TELEGRAM API DEBUG ===");
   console.log("Incoming Payload:", { action, details });
-  console.log("Env Token:", token ? "SET" : "MISSING");
-  console.log("Env ChatId:", chatId ? "SET" : "MISSING");
+  console.log("Env BOT_TOKEN:", token ? "SET" : "MISSING");
+  console.log("Env CHAT_ID:", chatId ? "SET" : "MISSING");
 
   if (!token || !chatId) {
     return res.status(500).json({ 
@@ -44,15 +45,15 @@ export default async function handler(req, res) {
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Telegram API Error:", errorText);
-      throw new Error(`Telegram Error: ${response.status} ${errorText}`);
-    }
-
     const data = await response.json();
     
+    if (!response.ok) {
+      console.error("Telegram API Response:", data);
+      throw new Error(`Telegram API Error: ${data.description || 'Unknown'}`);
+    }
+
     if (data.ok) {
+      console.log("Success! Message ID:", data.result?.message_id);
       return res.status(200).json({ success: true });
     } else {
       return res.status(500).json({ error: 'Telegram API Failure', details: data });
